@@ -16,10 +16,10 @@ data_train_str = '''
   transform_param {
     mirror: true
     crop_size: 32
-    mean_file: "all_pad.mean.binaryproto"
+    mean_file: "mean.binaryproto"
   }
   data_param {
-    source: "train.lmdb"
+    source: "cifar10_train_lmdb"
     batch_size: 256
     backend: LMDB
   }
@@ -36,10 +36,10 @@ data_test_str = '''
   transform_param {
     mirror: false
     crop_size: 32
-    mean_file: "all_no_pad.mean.binaryproto"
+    mean_file: "mean.binaryproto"
   }
   data_param {
-    source: "test.lmdb"
+    source: "cifar10_test_lmdb"
     batch_size: 50
     backend: LMDB
   }
