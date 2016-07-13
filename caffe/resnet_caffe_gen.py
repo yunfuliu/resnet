@@ -89,8 +89,8 @@ norm_str = '''
   batch_norm_param {
   }
 '''
-#lrn_param
-#batch_norm_param
+# lrn_param
+# batch_norm_param
 #
 '''
 message BatchNormParameter {
@@ -105,7 +105,6 @@ message BatchNormParameter {
   optional float eps = 3 [default = 1e-5];
 }
 '''
-
 
 pool_str = '''
   name: "pool_"
@@ -154,6 +153,7 @@ elem_str = '''
   eltwise_param { operation: SUM }
 '''
 
+## init
 _conv = caffe_pb2.LayerParameter()
 pb.text_format.Merge(conv_str, _conv)
 _norm = caffe_pb2.LayerParameter()
@@ -167,41 +167,50 @@ pb.text_format.Merge(pool_str, _pool)
 _fc = caffe_pb2.LayerParameter()
 pb.text_format.Merge(fc_str, _fc)
 
-layers = []
-
-data_train = caffe_pb2.LayerParameter()
-pb.text_format.Merge(data_train_str, data_train)
-data_test = caffe_pb2.LayerParameter()
-pb.text_format.Merge(data_test_str, data_test)
-
-layers.extend([data_train, data_test])
-
-layer_idx = 0
-layer_str = str(layer_idx)
-
-conv = deepcopy(_conv)
-conv.name = 'conv_' + layer_str
-conv.top[0] = 'conv_' + layer_str
-conv.bottom[0] = 'data'
-conv.convolution_param.weight_filler.std \
-    = math.sqrt(2./(3*3*3))
-
-norm = deepcopy(_norm)
-norm.name = 'norm_' + layer_str
-norm.top[0] = 'norm_' + layer_str
-norm.bottom[0] = 'conv_' + layer_str
-
-relu = deepcopy(_relu)
-relu.name = 'relu_' + layer_str
-relu.top[0] = 'relu_' + layer_str
-relu.bottom[0] = 'norm_' + layer_str
-
-layers.extend([conv, norm, relu])
-
-
+## for building blocks
 for n_const in [3, 5, 9]:
+    # number of conv layers at the same `output_size`. There will be `n_const` * 3 (diff `output_size`)
+    # building blocks (`n_const` *3 *2 +2 layers).
+
+
+    ## init
+    layers = []
+
+    ## data_train and data_test
+    data_train = caffe_pb2.LayerParameter()
+    pb.text_format.Merge(data_train_str, data_train)
+    data_test = caffe_pb2.LayerParameter()
+    pb.text_format.Merge(data_test_str, data_test)
+
+    layers.extend([data_train, data_test])
+
+    ## first layer
+    layer_idx = 0
+    layer_str = str(layer_idx)
+
+    conv = deepcopy(_conv)
+    conv.name = 'conv_' + layer_str
+    conv.top[0] = 'conv_' + layer_str
+    conv.bottom[0] = 'data'
+    conv.convolution_param.weight_filler.std \
+        = math.sqrt(2. / (3 * 3 * 3))
+
+    norm = deepcopy(_norm)
+    norm.name = 'norm_' + layer_str
+    norm.top[0] = 'norm_' + layer_str
+    norm.bottom[0] = 'conv_' + layer_str
+
+    relu = deepcopy(_relu)
+    relu.name = 'relu_' + layer_str
+    relu.top[0] = 'relu_' + layer_str
+    relu.bottom[0] = 'norm_' + layer_str
+
+    layers.extend([conv, norm, relu])
+
+    ## building blocks
     for output_size in [16, 32, 64]:
         for i in range(n_const):
+            # print 'n_const: ' + str(n_const), 'ouptut_size: ' + str(output_size), 'i: ' + str(i)
             # 1
             layer_idx += 1
             layer_str = str(layer_idx)
@@ -209,12 +218,12 @@ for n_const in [3, 5, 9]:
             conv = deepcopy(_conv)
             conv.name = 'conv_' + layer_str
             conv.top[0] = 'conv_' + layer_str
-            conv.bottom[0] = 'relu_' + str(layer_idx-1)
+            conv.bottom[0] = 'relu_' + str(layer_idx - 1)
             conv.convolution_param.num_output = output_size
             for prev_conv_layer in reversed(layers):
                 if prev_conv_layer.name.startswith('conv_'):
                     conv.convolution_param.weight_filler.std \
-                        = math.sqrt(2./(prev_conv_layer.convolution_param.num_output*3*3))
+                        = math.sqrt(2. / (prev_conv_layer.convolution_param.num_output * 3 * 3))
                     break
 
             norm = deepcopy(_norm)
@@ -236,12 +245,12 @@ for n_const in [3, 5, 9]:
             conv = deepcopy(_conv)
             conv.name = 'conv_' + layer_str
             conv.top[0] = 'conv_' + layer_str
-            conv.bottom[0] = 'relu_' + str(layer_idx-1)
+            conv.bottom[0] = 'relu_' + str(layer_idx - 1)
             conv.convolution_param.num_output = output_size
             for prev_conv_layer in reversed(layers):
                 if prev_conv_layer.name.startswith('conv_'):
                     conv.convolution_param.weight_filler.std \
-                        = math.sqrt(2./(prev_conv_layer.convolution_param.num_output*3*3))
+                        = math.sqrt(2. / (prev_conv_layer.convolution_param.num_output * 3 * 3))
                     break
 
             norm = deepcopy(_norm)
@@ -255,7 +264,7 @@ for n_const in [3, 5, 9]:
             elem.name = 'elem_' + layer_str
             elem.top[0] = 'elem_' + layer_str
             elem.bottom[0] = 'norm_' + layer_str
-            elem.bottom[1] = 'relu_' + str(layer_idx-2)
+            elem.bottom[1] = 'relu_' + str(layer_idx - 2)
 
             relu = deepcopy(_relu)
             relu.name = 'relu_' + layer_str
@@ -265,12 +274,11 @@ for n_const in [3, 5, 9]:
             layers.extend([conv, norm])
 
             # short cut with projection
-            if layer_idx in [2*n_const+2, 4*n_const+2]:
-
+            if layer_idx in [2 * n_const + 2, 4 * n_const + 2]:
                 conv = deepcopy(_conv)
-                conv.name = 'proj_' + str(layer_idx-1)
-                conv.top[0] = 'proj_' + str(layer_idx-1)
-                conv.bottom[0] = 'relu_' + str(layer_idx-2)
+                conv.name = 'proj_' + str(layer_idx - 1)
+                conv.top[0] = 'proj_' + str(layer_idx - 1)
+                conv.bottom[0] = 'relu_' + str(layer_idx - 2)
                 conv.convolution_param.num_output = output_size
                 conv.convolution_param.kernel_size[0] = 1
                 conv.convolution_param.stride[0] = 2
@@ -278,29 +286,27 @@ for n_const in [3, 5, 9]:
 
                 layers.extend([conv])
 
-
             layers.extend([elem, relu])
-
 
     prev_layer_idx = layer_idx
 
-    for layer_idx, output_size in zip([2*n_const+1, 4*n_const+1], [32, 64]):
+    for layer_idx, output_size in zip([2 * n_const + 1, 4 * n_const + 1], [32, 64]):
         layer_str = str(layer_idx)
         for layer in layers:
 
-            if layer.name == 'elem_' + str(layer_idx+1):
+            if layer.name == 'elem_' + str(layer_idx + 1):
                 layer.bottom[1] = 'proj_' + layer_str
 
             if layer.name == 'conv_' + str(layer_idx):
                 layer.convolution_param.stride[0] = 2
 
-
     layer_idx = 1 + prev_layer_idx
     layer_str = str(layer_idx)
 
+    ### calc loss
     pool = deepcopy(_pool)
     pool.name = 'pool_' + layer_str
-    pool.bottom[0] = 'relu_' + str(layer_idx-1)
+    pool.bottom[0] = 'relu_' + str(layer_idx - 1)
     pool.top[0] = 'pool_' + layer_str
 
     fc = deepcopy(_fc)
@@ -310,6 +316,7 @@ for n_const in [3, 5, 9]:
 
     layers.extend([pool, fc])
 
+    ### loss and accu
     loss_str = '''
       name: "loss"
       type: "SoftmaxWithLoss"
@@ -339,7 +346,9 @@ for n_const in [3, 5, 9]:
 
     layers.extend([loss, accu])
 
+    ### merge
     net = caffe_pb2.NetParameter()
     net.name = "resnet_cifar10_" + str(n_const * 6 + 2)
+    print 'net.name: ' + str(net.name)
     net.layer.extend(layers)
-    open(net.name+'.prototxt', 'w').write(str(net))
+    open(net.name + '.prototxt', 'w').write(str(net))
