@@ -168,7 +168,7 @@ _fc = caffe_pb2.LayerParameter()
 pb.text_format.Merge(fc_str, _fc)
 
 ## for building blocks
-for n_const in [3, 5, 9]:
+for n_const in [3, 5, 7, 9, 18, 200]:  # the `n` defined in S4.2 of the paper.
     # number of conv layers at the same `output_size`. There will be `n_const` * 3 (diff `output_size`)
     # building blocks (`n_const` *3 *2 +2 layers).
 
